@@ -24,7 +24,7 @@ def embed_query(text):
     return _model.encode(text, normalize_embeddings=True)
 
 
-def decode(q, k=10, beam=BEAM):
+def candidates(q, beam=BEAM):
     """Beam search level by level; only codes present in the trie are expanded.
     A prefix scores q . (sum of its codewords), the partial reconstruction."""
     beams = [(0.0, np.zeros_like(q), trie)]  # (score, partial vector, trie node)
@@ -37,9 +37,52 @@ def decode(q, k=10, beam=BEAM):
         beams = sorted(nxt, key=lambda b: -b[0])[:beam]
     items = [(s, item) for s, _, node in beams for item in node.values()]
     items.sort(key=lambda t: -t[0])
+    return np.array([i for _, i in items[:POOL]])
+
+
+def decode(q, k=10, beam=BEAM):
     # rerank a wider pool with exact cosine: the quantised score alone is lossy
-    pool = np.array([i for _, i in items[:POOL]])
+    pool = candidates(q, beam)
     return pool[np.argsort(-(emb[pool] @ q))[:k]].tolist()
+
+
+# --- mock user profile and familiar / non-habitual switch ---
+PROFILE_GENRES = ["indie", "pop", "acoustic", "singer-songwriter", "folk", "indie-pop", "chill", "ambient", "piano", "rock", "edm", "hip-hop"]
+W = 0.15  # max score shift from the switch, in cosine units
+
+
+def make_profile(n=120, seed=0):
+    pool = cat[cat.track_genre.isin(PROFILE_GENRES)].sort_values("popularity", ascending=False).head(2000)
+    return pool.sample(n=n, random_state=seed).item_id.to_numpy()
+
+
+profile = make_profile()
+P1 = set(ids[profile, 0].tolist())
+P2 = set(map(tuple, ids[profile, :2].tolist()))
+
+
+def familiarity(items):
+    """0..1: half for sharing the level-1 code with the profile, half for level-1+2."""
+    return np.array([0.5 * (ids[i, 0] in P1) + 0.5 * (tuple(ids[i, :2]) in P2) for i in items])
+
+
+def recommend(query, k=10, lam=0.0, q=None):
+    """lam in [-1, 1]: +1 favours familiar, -1 favours non-habitual, 0 is neutral."""
+    q = embed_query(query) if q is None else q
+    pool = candidates(q)
+    score = emb[pool] @ q + lam * W * (familiarity(pool) - 0.5) * 2
+    return pool[np.argsort(-score)[:k]].tolist()
+
+
+def show_switch(query, k=10):
+    q = embed_query(query)
+    print(f"\n> {query}")
+    for lam in (-1, 0, 1):
+        got = recommend(query, k, lam, q)
+        fam = familiarity(got).mean()
+        rel = (emb[got] @ q).mean()
+        genres = pd.Series(cat.track_genre.iloc[got]).value_counts().head(3).to_dict()
+        print(f"  lam={lam:+d}  familiarity {fam:.2f}  mean cosine {rel:.3f}  {genres}")
 
 
 def show(query, k=10):
@@ -56,4 +99,4 @@ if __name__ == "__main__":
     qs = sys.argv[1:] or ["something calm for a 3 a.m. study session",
                           "high energy workout music", "sad acoustic songs for a rainy day"]
     for t in qs:
-        show(t)
+        show_switch(t)
