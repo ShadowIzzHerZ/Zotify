@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zotify</title>
+<style>
+  :root {
+    --bg: #111314; --panel: #1a1d1f; --line: #2a2e31; --text: #e9ecec; --mute: #8d9598;
+    --accent: #5fd08a; --warm: #e8a553; --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f7f7; --panel: #fff; --line: #dde1e2; --text: #141718; --mute: #657073; --accent: #17894a; --warm: #b4690e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) 280px; }
+  @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; } }
+  header { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+  h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--mute); text-transform: none; }
+  .tag { color: var(--mute); font-size: 13px; }
+  form { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; min-width: 0; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+  input[type=text]:focus-visible, button:focus-visible, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button { font: inherit; cursor: pointer; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 12px; }
+  button:hover { border-color: var(--mute); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #07140c; font-weight: 600; padding: 12px 18px; }
+  .switch { margin: 16px 0 6px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .switch .ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--mute); margin-top: 6px; }
+  .switch .ends b { color: var(--text); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+  .note { font-size: 13px; color: var(--mute); margin: 8px 0 16px; min-height: 20px; }
+  .note code { color: var(--text); }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .item { padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .item.skipped { opacity: .45; }
+  .row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .title { font-weight: 600; overflow-wrap: anywhere; }
+  .artist { color: var(--mute); font-size: 14px; overflow-wrap: anywhere; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mute); }
+  .chip.fam { color: var(--accent); border-color: var(--accent); }
+  .chip.new { color: var(--warm); border-color: var(--warm); }
+  .why { margin: 10px 0 0; font-size: 14px; min-height: 21px; }
+  .why.loading { color: var(--mute); }
+  .acts { display: flex; gap: 6px; flex-shrink: 0; }
+  .acts button { padding: 4px 10px; font-size: 13px; }
+  .acts button.on { background: var(--accent); border-color: var(--accent); color: #07140c; }
+  aside .box { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 14px; margin-bottom: 16px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 12px; color: var(--mute); }
+  .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+  .log li { overflow-wrap: anywhere; }
+  .log .a { color: var(--mute); }
+  .empty { color: var(--mute); font-size: 14px; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Zotify</h1>
+    <span class="tag">language-steerable music discovery</span>
+  </header>
+
+  <main>
+    <form id="form">
+      <input type="text" id="q" placeholder="Describe what you want, e.g. something calm for a 3 a.m. study session" maxlength="300" required aria-label="What do you want to hear?">
+      <button class="primary" id="go">Find</button>
+    </form>
+
+    <div class="switch">
+      <input type="range" id="lam" min="-1" max="1" step="0.25" value="0" aria-label="Familiar versus non-habitual">
+      <div class="ends"><span><b>Non-habitual</b> outside your routine</span><span id="lamv">balanced</span><span><b>Familiar</b> like your usual</span></div>
+    </div>
+    <div class="note" id="note"></div>
+
+    <ol id="results"></ol>
+    <div class="empty" id="empty">Type what you're in the mood for. Move the slider to choose how far from your usual taste the results should go.</div>
+  </main>
+
+  <aside>
+    <div class="box">
+      <h2>Your profile</h2>
+      <div class="stats">
+        <div class="stat"><b id="s-profile">0</b><span>tracks in taste profile</span></div>
+        <div class="stat"><b id="s-save">0</b><span>saved</span></div>
+        <div class="stat"><b id="s-play">0</b><span>played</span></div>
+        <div class="stat"><b id="s-skip">0</b><span>skipped</span></div>
+      </div>
+    </div>
+    <div class="box">
+      <h2>Recent activity</h2>
+      <ul class="log" id="log"></ul>
+    </div>
+  </aside>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let current = { query: "", lam: 0 };
+let runId = 0;
+
+const lamLabel = (v) => v == 0 ? "balanced" : (v < 0 ? "leaning new " : "leaning familiar ") + Math.abs(v * 100) + "%";
+$("lam").addEventListener("input", () => { $("lamv").textContent = lamLabel(+$("lam").value); });
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderItem(it) {
+  const li = el("li", "item");
+  const row = el("div", "row");
+  const left = el("div");
+  left.append(el("div", "title", it.title), el("div", "artist", it.artists));
+  const chips = el("div", "chips");
+  chips.append(el("span", "chip", it.genre));
+  chips.append(el("span", "chip " + (it.familiarity >= 0.5 ? "fam" : "new"), it.familiarity >= 0.5 ? "familiar" : "non-habitual"));
+  chips.append(el("span", "chip", "ID " + it.sid));
+  left.append(chips);
+  const acts = el("div", "acts");
+  for (const [action, label] of [["play", "Play"], ["save", "Save"], ["skip", "Skip"]]) {
+    const b = el("button", "", label);
+    b.type = "button";
+    b.onclick = async () => {
+      b.disabled = true;
+      if (action === "skip") li.classList.add("skipped");
+      else b.classList.add("on");
+      try { renderStats((await api("/api/feedback", { item_id: it.id, action, query: current.query, lam: current.lam }))); loadHistory(); }
+      catch { b.disabled = false; }
+    };
+    acts.append(b);
+  }
+  row.append(left, acts);
+  const why = el("p", "why loading", "Writing why this fits…");
+  li.append(row, why);
+  li._why = why;
+  return li;
+}
+
+async function explainAll(items, lis, id) {
+  for (let i = 0; i < items.length; i++) {
+    if (id !== runId) return; // a newer search replaced these results
+    try {
+      const r = await api("/api/explain", { item_id: items[i].id, query: current.query, familiarity: items[i].familiarity });
+      lis[i]._why.textContent = r.text;
+    } catch { lis[i]._why.textContent = ""; }
+    lis[i]._why.classList.remove("loading");
+  }
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const query = $("q").value.trim();
+  if (!query) return;
+  const lam = +$("lam").value;
+  current = { query, lam };
+  const id = ++runId;
+  $("go").disabled = true;
+  $("note").textContent = "Searching…";
+  try {
+    const data = await api("/api/search", { query, lam, k: 10, use_llm: true });
+    if (id !== runId) return;
+    $("results").replaceChildren();
+    $("empty").hidden = true;
+    const lis = data.results.map(renderItem);
+    $("results").append(...lis);
+    const n = el("span");
+    n.append(data.rewritten ? "Understood as: " : "Local LLM unavailable, searched your words directly.");
+    if (data.rewritten) n.append(el("code", "", data.rewritten));
+    $("note").replaceChildren(n);
+    explainAll(data.results, lis, id);
+  } catch {
+    $("note").textContent = "Search failed. Is the server running?";
+  } finally { $("go").disabled = false; }
+});
+
+function renderStats(s) {
+  $("s-profile").textContent = s.profile_size; $("s-save").textContent = s.save;
+  $("s-play").textContent = s.play; $("s-skip").textContent = s.skip;
+}
+
+async function loadHistory() {
+  try {
+    const h = await api("/api/history");
+    renderStats(h.stats);
+    const log = $("log");
+    log.replaceChildren();
+    if (!h.recent.length) log.append(el("li", "empty", "Nothing yet."));
+    for (const r of h.recent) {
+      const li = el("li");
+      li.append(el("span", "a", r.action + " · "), document.createTextNode(r.title + " — " + r.artists));
+      log.append(li);
+    }
+  } catch {}
+}
+loadHistory();
+</script>
+</body>
+</html>

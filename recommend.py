@@ -57,28 +57,33 @@ def make_profile(n=120, seed=0):
 
 
 profile = make_profile()
-P1 = set(ids[profile, 0].tolist())
-P2 = set(map(tuple, ids[profile, :2].tolist()))
 
 
-def familiarity(items):
+def prefixes(profile_items):
+    return set(ids[profile_items, 0].tolist()), set(map(tuple, ids[profile_items, :2].tolist()))
+
+
+def familiarity(items, profile_items=None):
     """0..1: half for sharing the level-1 code with the profile, half for level-1+2."""
+    P1, P2 = prefixes(profile if profile_items is None else profile_items)
     return np.array([0.5 * (ids[i, 0] in P1) + 0.5 * (tuple(ids[i, :2]) in P2) for i in items])
 
 
-def recommend(query, k=10, lam=0.0, q=None):
+def recommend(query, k=10, lam=0.0, q=None, profile_items=None):
     """lam in [-1, 1]: +1 favours familiar, -1 favours non-habitual, 0 is neutral."""
     q = embed_query(query) if q is None else q
     pool = candidates(q)
-    score = emb[pool] @ q + lam * W * (familiarity(pool) - 0.5) * 2
-    return pool[np.argsort(-score)[:k]].tolist()
+    fam = familiarity(pool, profile_items)
+    score = emb[pool] @ q + lam * W * (fam - 0.5) * 2
+    order = np.argsort(-score)[:k]
+    return pool[order].tolist(), fam[order].tolist()
 
 
 def show_switch(query, k=10):
     q = embed_query(query)
     print(f"\n> {query}")
     for lam in (-1, 0, 1):
-        got = recommend(query, k, lam, q)
+        got, _ = recommend(query, k, lam, q)
         fam = familiarity(got).mean()
         rel = (emb[got] @ q).mean()
         genres = pd.Series(cat.track_genre.iloc[got]).value_counts().head(3).to_dict()
