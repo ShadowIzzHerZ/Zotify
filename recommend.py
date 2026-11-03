@@ -1,4 +1,5 @@
 """Trie-constrained beam search over semantic IDs. Query embedded directly (no LLM yet)."""
+import glob
 import sys
 
 import numpy as np
@@ -11,7 +12,9 @@ BEAM = 256
 POOL = 1000
 
 cat = pd.read_parquet("data/catalog.parquet")
-emb = np.load("data/embeddings.npy")
+# deploy limit is 28 MB per file, so embeddings may be split into embeddings_N.npy parts
+_parts = sorted(glob.glob("data/embeddings_*.npy"))
+emb = np.concatenate([np.load(f) for f in _parts]) if _parts else np.load("data/embeddings.npy")
 books = np.load("data/codebooks.npy")
 ids = np.load("data/semantic_ids.npy")
 trie = build_trie(ids)
