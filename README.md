@@ -2,6 +2,8 @@
 
 Language-steerable music discovery. Describe what you want to hear ("something calm for a 3 a.m. study session") and get tracks from a catalog, each with a one-line explanation. A slider moves results between **familiar** (close to your listening history) and **non-habitual** (outside your routine).
 
+**Live:** https://zotify.antideploy.app
+
 Built for hackathon problem statement #8 (Spotify: LLM + semantic IDs + preference tuning).
 
 ## How it works
