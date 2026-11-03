@@ -1,0 +1,7 @@
+.venv
+.git
+.env
+data/dataset.csv
+__pycache__
+*.db
+MVP.md

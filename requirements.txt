@@ -1,4 +1,8 @@
 pandas
 numpy
-sentence-transformers
 pyarrow
+sentence-transformers
+fastapi
+uvicorn
+psycopg[binary]
+python-dotenv
