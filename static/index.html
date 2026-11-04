@@ -176,7 +176,7 @@ $("form").addEventListener("submit", async (e) => {
     const lis = data.results.map(renderItem);
     $("results").append(...lis);
     const n = el("span");
-    n.append(data.rewritten ? "Understood as: " : "Local LLM unavailable, searched your words directly.");
+    n.append(data.rewritten ? "Understood as: " : "Rewrite model unavailable, searched your words directly.");
     if (data.rewritten) n.append(el("code", "", data.rewritten));
     $("note").replaceChildren(n);
     explainAll(data.results, lis, id);

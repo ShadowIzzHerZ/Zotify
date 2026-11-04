@@ -67,7 +67,7 @@ def explain(e: Explain):
     try:
         return {"text": llm.explain(e.query, row, label)}
     except Exception:
-        return {"text": f"Matches your request on genre ({row.track_genre}) and sound: {row.text.split('. ', 2)[-1]}"}
+        return {"text": f"{row.track_genre.capitalize()} track, described as {row.text.split('. ', 2)[-1].rstrip('.')}."}
 
 
 @app.post("/api/feedback")
